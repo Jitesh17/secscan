@@ -66,7 +66,7 @@ The second layer is optional. If you set `ANTHROPIC_API_KEY`, secscan sends each
 
 The difference in practice: instead of "Add a Strict-Transport-Security header", you get the exact line to add, the file it goes into, and the specific `max-age` and directives appropriate for a site that already has a working CSP and serves on a wildcard subdomain. Sometimes the model is wrong. When it's wrong, the static DB fallback is right behind it.
 
-![secscan finding with AI-tailored remediation](docs/report.png)
+![Expanded finding with curated remediation, rationale, and an example fix](docs/report.png)
 
 Cost works out to cents per scan with Sonnet. Findings are cached by hash, so re-scanning the same target reuses prior fixes. On privacy: by default, code snippets and config files do leave your machine. The `--no-code` flag keeps them local and sends only finding metadata. The `--no-ai` flag skips the API entirely and falls back to the static DB. Worth thinking about before you point it at a repo with anything sensitive in it.
 
