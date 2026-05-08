@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 import ipaddress
+import shutil
 import sys
 
 import click
@@ -222,17 +223,34 @@ def list_scanners():
     table.add_column("Name", style="cyan")
     table.add_column("Risk")
     table.add_column("Tool")
+    table.add_column("Available")
     table.add_column("Description")
+    missing = []
     for name, info in SCANNERS.items():
         risk_color = {"safe": "green", "low": "blue",
                       "medium": "yellow", "high": "red"}[info.risk.value]
+        if info.requires_tool is None:
+            available_cell = "[green]yes[/]"
+        elif shutil.which(info.requires_tool):
+            available_cell = "[green]yes[/]"
+        else:
+            available_cell = "[red]missing[/]"
+            missing.append((name, info.requires_tool))
         table.add_row(
             name,
             f"[{risk_color}]{info.risk.value}[/]",
             info.requires_tool or "(builtin)",
+            available_cell,
             info.description,
         )
     console.print(table)
+    if missing:
+        tools_needed = sorted({tool for _, tool in missing})
+        console.print(
+            f"\n[yellow]{len(missing)} scanner(s) cannot run "
+            f"because their tool is not on PATH: "
+            f"{', '.join(tools_needed)}.[/yellow]"
+        )
 
 
 @main.command()
