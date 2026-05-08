@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from . import __version__
 from .config import SCANNERS, PROFILES, Risk, severity_rank
 from .runner import run_scans
 from .reports import write_html, write_markdown, write_json
@@ -61,7 +62,7 @@ def _risk_warning(scanner_names: list[str], i_accept_risk: bool) -> bool:
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="secscan")
+@click.version_option(version=__version__, prog_name="secscan")
 def main():
     """secscan - automated web security scanner."""
 

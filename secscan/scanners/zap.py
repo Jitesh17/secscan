@@ -68,9 +68,6 @@ class ZAPBaselineScanner(BaseScanner):
         proc = self.shell(cmd, timeout=timeout)
         result.raw_output = (proc.stdout + "\n" + proc.stderr)[:15000]
         result.findings = _parse_zap_output(proc.stdout, self.target, self.name)
-        html_report = os.path.join(workdir, "report.html")
-        if os.path.exists(html_report):
-            result.raw["html_report_path"] = html_report  # type: ignore[attr-defined]
 
 
 class ZAPFullScanner(BaseScanner):

@@ -32,8 +32,6 @@ class SubdomainScanner(BaseScanner):
         if not subdomains:
             return
 
-        result.raw["subdomains"] = subdomains  # type: ignore[attr-defined]
-
         result.findings.append(Finding(
             title=f"Discovered {len(subdomains)} subdomains for {domain}",
             severity="info",
