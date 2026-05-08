@@ -6,7 +6,7 @@ ROOT = Path(__file__).parent
 LONG_DESCRIPTION = (ROOT / "README.md").read_text(encoding="utf-8")
 
 setup(
-    name="secscan",
+    name="secscan-tool",
     version="0.1.0",
     description=(
         "Automated web security scanner with HTML/Markdown/JSON reports "

@@ -30,7 +30,7 @@ I wanted one command that runs the battery, produces an integrated report, and p
 `secscan` is a Click CLI plus a small FastAPI dashboard. It orchestrates the tools above (it does not replace any of them), normalises findings into a common shape, and renders unified HTML, Markdown, and JSON reports.
 
 ```
-pip install secscan
+pip install secscan-tool
 secscan scan https://example.com
 ```
 
@@ -77,7 +77,7 @@ Pick whichever fits.
 Local install:
 
 ```
-pip install secscan
+pip install secscan-tool
 secscan scan https://example.com
 ```
 

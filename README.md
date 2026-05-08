@@ -1,7 +1,7 @@
 # secscan
 
-[![PyPI version](https://img.shields.io/pypi/v/secscan.svg)](https://pypi.org/project/secscan/)
-[![Python versions](https://img.shields.io/pypi/pyversions/secscan.svg)](https://pypi.org/project/secscan/)
+[![PyPI version](https://img.shields.io/pypi/v/secscan-tool.svg)](https://pypi.org/project/secscan-tool/)
+[![Python versions](https://img.shields.io/pypi/pyversions/secscan-tool.svg)](https://pypi.org/project/secscan-tool/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Automated web security scanner. Runs a configurable battery of scans against a target, warns you about anything risky before running it, and produces HTML, Markdown, and JSON reports.
@@ -11,9 +11,11 @@ Automated web security scanner. Runs a configurable battery of scans against a t
 ## Quick start
 
 ```
-pip install secscan
+pip install secscan-tool
 secscan scan https://example.com
 ```
+
+(The PyPI package is `secscan-tool`; the CLI command it installs is `secscan`.)
 
 Reports land in `./reports/<target>-<timestamp>/` as HTML, Markdown, and JSON.
 
