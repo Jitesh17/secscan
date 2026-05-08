@@ -6,7 +6,7 @@
 
 Automated web security scanner. Runs a configurable battery of scans against a target, warns you about anything risky before running it, and produces HTML, Markdown, and JSON reports.
 
-![secscan dashboard](docs/dashboard.png)
+![secscan dashboard](https://raw.githubusercontent.com/Jitesh17/secscan/main/docs/dashboard.png)
 
 ## Quick start
 
