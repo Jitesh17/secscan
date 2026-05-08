@@ -31,7 +31,39 @@ export ANTHROPIC_API_KEY=sk-ant-...
 secscan scan https://example.com --repo .
 ```
 
-External tools (`nuclei`, `nmap`, `subfinder`, etc.) are used by some scanners. The bundled `./install.sh` checks what's missing on your machine and points you at install instructions.
+External tools (`nuclei`, `nmap`, `subfinder`, etc.) are used by some scanners. The bundled `./install.sh` checks what's missing on your machine and points you at install instructions, or use the [Docker image](#docker) which bundles them.
+
+## Docker
+
+A `Dockerfile` and `docker-compose.yml` are included for self-hosting the dashboard. The image bundles `secscan` plus `nuclei`, `nmap`, `subfinder`, `httpx`, `trivy`, `semgrep`, and `gitleaks`. ZAP and `ffuf` are not included (they bloat the image significantly); install them on the host if you need those scanners.
+
+Quick start with compose:
+
+```
+git clone https://github.com/Jitesh17/secscan.git
+cd secscan
+export ANTHROPIC_API_KEY=sk-ant-...    # optional, for AI-tailored fixes
+docker compose up -d
+```
+
+Open `http://localhost:8765`. Reports are written to `./reports/` on the host (mounted into the container at `/app/reports`). Stop with `docker compose down`.
+
+Without compose:
+
+```
+docker build -t secscan:latest .
+docker run -d --name secscan -p 8765:8765 \
+  -v "$PWD/reports:/app/reports" \
+  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  secscan:latest
+```
+
+Notes:
+
+- Image is roughly 1.5 GB on `linux/arm64`. Most of the size is `nuclei` plus `semgrep`'s embedded Rust binary.
+- Tool versions are pinned via Dockerfile `ARG`s (`NUCLEI_VERSION`, `SUBFINDER_VERSION`, `HTTPX_VERSION`, `TRIVY_VERSION`, `GITLEAKS_VERSION`). Override at build time with `--build-arg`.
+- The container runs as root so `nmap` can perform SYN scans. Don't expose port 8765 to untrusted networks.
+- One-off scans from inside the container: `docker compose exec dashboard secscan scan https://example.com`.
 
 ## What it does
 

@@ -1,0 +1,14 @@
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: secscan:latest
+    container_name: secscan
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./reports:/app/reports
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
