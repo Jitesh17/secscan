@@ -1,0 +1,66 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in as much as you can.
+        Security issues in secscan itself: do **not** file here. Email gosar95@gmail.com instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: A clear description of the bug. What did you expect, what did you see?
+      placeholder: |
+        I ran `secscan scan https://example.com` and ...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Exact command(s) you ran and any flags or env vars that matter.
+      placeholder: |
+        1. Install with `pip install secscan==0.1.0`
+        2. Run `secscan scan https://example.com --scans headers,tls`
+        3. ...
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output / stack trace
+      description: Paste the relevant terminal output. Redact any target hostnames or secrets.
+      render: shell
+  - type: input
+    id: secscan-version
+    attributes:
+      label: secscan version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.11.7"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 15.2 / Ubuntu 22.04 / Docker"
+    validations:
+      required: true
+  - type: textarea
+    id: external-tools
+    attributes:
+      label: External tool versions (if relevant)
+      description: e.g. nuclei, nmap, zap, subfinder, httpx versions
+      placeholder: |
+        nuclei: v3.2.4
+        nmap: 7.94

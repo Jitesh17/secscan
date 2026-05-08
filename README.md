@@ -1,6 +1,37 @@
 # secscan
 
+[![PyPI version](https://img.shields.io/pypi/v/secscan.svg)](https://pypi.org/project/secscan/)
+[![Python versions](https://img.shields.io/pypi/pyversions/secscan.svg)](https://pypi.org/project/secscan/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Automated web security scanner. Runs a configurable battery of scans against a target, warns you about anything risky before running it, and produces HTML, Markdown, and JSON reports.
+
+![secscan dashboard](docs/dashboard.png)
+
+## Quick start
+
+```
+pip install secscan
+secscan scan https://example.com
+```
+
+Reports land in `./reports/<target>-<timestamp>/` as HTML, Markdown, and JSON.
+
+For the live dashboard:
+
+```
+secscan serve
+# open http://localhost:8765
+```
+
+For AI-tailored remediation, set `ANTHROPIC_API_KEY` before scanning:
+
+```
+export ANTHROPIC_API_KEY=sk-ant-...
+secscan scan https://example.com --repo .
+```
+
+External tools (`nuclei`, `nmap`, `subfinder`, etc.) are used by some scanners. The bundled `./install.sh` checks what's missing on your machine and points you at install instructions.
 
 ## What it does
 
