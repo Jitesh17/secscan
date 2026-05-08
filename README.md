@@ -10,30 +10,70 @@ Automated web security scanner. Runs a configurable battery of scans against a t
 
 ## Quick start
 
+The PyPI package is `secscan-tool`; the CLI command it installs is `secscan`.
+
+On macOS or any PEP-668 system, install with [pipx](https://pipx.pypa.io/) so the CLI is isolated and on `PATH`:
+
 ```
-pip install secscan-tool
+brew install pipx
+pipx ensurepath
+pipx install secscan-tool
+```
+
+On Linux without pipx, a user-level `pip install` works:
+
+```
+python3 -m pip install --user secscan-tool
+```
+
+Verify the install:
+
+```
+secscan --version
+secscan list-scanners
+```
+
+Run a safe scan:
+
+```
 secscan scan https://example.com
 ```
 
-(The PyPI package is `secscan-tool`; the CLI command it installs is `secscan`.)
-
 Reports land in `./reports/<target>-<timestamp>/` as HTML, Markdown, and JSON.
 
-For the live dashboard:
+Live dashboard on port 8765:
 
 ```
 secscan serve
 # open http://localhost:8765
 ```
 
-For AI-tailored remediation, set `ANTHROPIC_API_KEY` before scanning:
+AI-tailored remediation (optional). Set `ANTHROPIC_API_KEY` before scanning:
 
 ```
 export ANTHROPIC_API_KEY=sk-ant-...
 secscan scan https://example.com --repo .
 ```
 
-External tools (`nuclei`, `nmap`, `subfinder`, etc.) are used by some scanners. The bundled `./install.sh` checks what's missing on your machine and points you at install instructions, or use the [Docker image](#docker) which bundles them.
+## External tools
+
+Most scanners shell out to a separate binary. The Python install above only gets you `headers` and `tls`. For everything else, install the tool the scanner uses:
+
+```
+# macOS (Homebrew)
+brew install nuclei nmap subfinder httpx trivy gitleaks ffuf semgrep
+docker pull zaproxy/zap-stable    # for zap-baseline / zap-full
+
+# Debian / Ubuntu
+sudo apt-get install -y nmap
+# install nuclei, subfinder, httpx, trivy, gitleaks via their official releases
+sudo apt-get install -y python3-pip && pip install --user semgrep
+docker pull zaproxy/zap-stable
+```
+
+Or skip the host install entirely and use the [Docker image](#docker), which bundles `secscan` plus `nuclei`, `nmap`, `subfinder`, `httpx`, `trivy`, `semgrep`, and `gitleaks` (ZAP and `ffuf` are not bundled; pull `zaproxy/zap-stable` separately if you need ZAP).
+
+`secscan list-scanners` prints every scanner, its risk level, and which external tool it depends on. If a scanner's tool is missing from `PATH`, secscan will skip that scanner and note it in the report.
 
 ## Docker
 
@@ -87,53 +127,84 @@ Notes:
 
 The tool refuses to run Medium-risk scans without an explicit `--i-accept-risk` flag and prints a damage estimate first.
 
-## Install
+## Install from source (for development)
+
+If you want to hack on secscan itself, install editable from a clone:
 
 ```
-git clone <this-repo>
-cd secscan-tool
-./install.sh
+git clone https://github.com/Jitesh17/secscan.git
+cd secscan
+python3 -m venv .venv
+.venv/bin/pip install -e .
+.venv/bin/secscan --help
 ```
 
-The install script installs Python dependencies and checks for external tools (nuclei, zap, nmap, etc.). It tells you which are missing and how to install them.
+The bundled `./install.sh` script checks for external tools and prints install hints for what's missing.
 
 ## Usage
 
 ### CLI
 
-Quick safe scan:
+List available scanners and which can run on your machine:
+
+```
+secscan list-scanners
+```
+
+Quick safe scan (runs all `safe`-rated scanners by default):
 
 ```
 secscan scan https://example.com
 ```
 
-Specify scans:
+Pick specific scanners by name:
 
 ```
 secscan scan https://example.com --scans headers,tls,nuclei,zap-baseline
 ```
 
-Include code scans (point at a local repo):
+Include source-code scans by pointing at a local repo (enables `code-trivy`, `code-semgrep`, `code-gitleaks`):
 
 ```
 secscan scan https://example.com --repo /path/to/repo
 ```
 
-Aggressive scans (will prompt for confirmation):
+Use a profile (named bundle of scanners):
 
 ```
-secscan scan https://example.com --aggressive --i-accept-risk
+secscan scan https://example.com --profile safe        # default
+secscan scan https://example.com --profile code --repo .
+secscan scan https://example.com --profile full --i-accept-risk
 ```
 
-Reports are written to `./reports/<target>-<timestamp>/` in HTML, Markdown, and JSON.
+`safe`, `default`, `code`, and `full` are the built-in profiles. `--profile full` includes medium-risk scans and requires `--i-accept-risk`.
+
+Other useful flags:
+
+- `--allow-ip` permit scanning IP-address targets (off by default so you don't accidentally hit infrastructure you don't own)
+- `--workers N` how many scanners run in parallel (default 4)
+- `--rate-limit N` requests per second cap for nuclei
+- `--severity LEVEL` nuclei severity filter (`info`, `low`, `medium`, `high`, `critical`)
+- `-o, --output DIR` write reports somewhere other than `./reports/`
+- `--no-enrich` skip remediation enrichment entirely
+- `--no-ai` use the static remediation DB only; do not call Claude
+- `--no-code` send finding metadata to the AI but no code/config snippets (more private)
+- `--max-ai-findings N` cap how many findings get sent to Claude (default 50)
+
+`secscan scan --help` lists every flag.
+
+Reports are written to `./reports/<target>-<timestamp>/` as `report.html`, `report.md`, and `report.json`.
 
 ### Web dashboard
 
 ```
-secscan serve
+secscan serve                                    # binds 127.0.0.1:8765
+secscan serve --host 0.0.0.0 --port 8765         # bind on all interfaces (Docker/LAN)
 ```
 
-Open `http://localhost:8765`, enter a target, pick scans, click run. Watches scan progress live and renders the report inline when done.
+Open `http://localhost:8765`, enter a target, pick scans, click run. Watches scan progress live and renders the report inline when done. Past reports are listed in the right-hand panel and re-openable.
+
+The dashboard has no auth and is single-tenant. Don't expose it to untrusted networks; put it behind a reverse proxy or VPN if it needs to be reachable from outside localhost.
 
 ### Remediation enrichment
 
