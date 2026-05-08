@@ -1,0 +1,125 @@
+name: Security scan
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Target URL to scan"
+        required: true
+        default: "https://example.com"
+      profile:
+        description: "Scan profile"
+        required: true
+        default: "default"
+        type: choice
+        options: [safe, default, code, full]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set target
+        id: target
+        run: |
+          if [ -n "${{ inputs.target }}" ]; then
+            echo "target=${{ inputs.target }}" >> $GITHUB_OUTPUT
+          else
+            echo "target=${{ vars.SECSCAN_TARGET }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install secscan
+        run: |
+          pip install -e .
+
+      - name: Install external tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nmap
+          curl -sL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_3.2.0_linux_amd64.zip -o nuclei.zip
+          unzip -q nuclei.zip && sudo mv nuclei /usr/local/bin/
+          curl -sL https://github.com/projectdiscovery/subfinder/releases/latest/download/subfinder_2.6.4_linux_amd64.zip -o subfinder.zip
+          unzip -q subfinder.zip && sudo mv subfinder /usr/local/bin/
+          curl -sL https://github.com/projectdiscovery/httpx/releases/latest/download/httpx_1.6.0_linux_amd64.zip -o httpx.zip
+          unzip -q httpx.zip && sudo mv httpx /usr/local/bin/
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+          python -m pip install semgrep
+          curl -sL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.18.0_linux_x64.tar.gz | tar xz -C /tmp
+          sudo mv /tmp/gitleaks /usr/local/bin/
+          nuclei -update-templates -silent || true
+
+      - name: Run scan
+        id: scan
+        continue-on-error: true
+        run: |
+          secscan scan "${{ steps.target.outputs.target }}" \
+            --profile "${{ inputs.profile || 'default' }}" \
+            --repo . \
+            --output ./reports \
+            --i-accept-risk
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: secscan-reports
+          path: ./reports/
+          retention-days: 30
+
+      - name: Summarize for job log
+        if: always()
+        run: |
+          echo "## Security scan results" >> $GITHUB_STEP_SUMMARY
+          for f in ./reports/*/report.md; do
+            if [ -f "$f" ]; then
+              cat "$f" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: File issue on high/critical findings
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const reportsDir = "./reports";
+            if (!fs.existsSync(reportsDir)) return;
+            const dirs = fs.readdirSync(reportsDir).filter(d =>
+              fs.statSync(path.join(reportsDir, d)).isDirectory()
+            );
+            for (const d of dirs) {
+              const jsonPath = path.join(reportsDir, d, "report.json");
+              if (!fs.existsSync(jsonPath)) continue;
+              const data = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+              const sev = data.summary?.by_severity || {};
+              const bad = (sev.critical || 0) + (sev.high || 0);
+              if (bad === 0) continue;
+              const body = [
+                `Automated security scan of \`${data.target}\` found `,
+                `**${sev.critical || 0} critical** and **${sev.high || 0} high** severity findings.\n\n`,
+                `Run: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}\n\n`,
+                `Download the \`secscan-reports\` artifact for full details.`,
+              ].join("");
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Security scan: ${bad} high/critical findings on ${data.target}`,
+                body,
+                labels: ["security", "automated"],
+              });
+            }

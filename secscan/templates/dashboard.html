@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secscan dashboard</title>
+<style>
+  :root {
+    --bg: #0f1115; --surface: #181c24; --surface-2: #20262f; --border: #2a313c;
+    --text: #e6e9ef; --text-dim: #9aa3b2; --accent: #6ea8ff;
+    --safe: #22c55e; --low: #38bdf8; --medium: #eab308; --high: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  .layout { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  header { padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  header h1 { margin: 0 0 4px; font-size: 24px; font-weight: 600; }
+  header p { margin: 0; color: var(--text-dim); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px;
+  }
+  .panel h2 { margin: 0 0 16px; font-size: 16px; font-weight: 600; }
+  label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+  input[type="text"], select {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; font-size: 14px; font-family: inherit;
+  }
+  .field { margin-bottom: 14px; }
+  .scanners { max-height: 360px; overflow-y: auto; padding-right: 8px; }
+  .scanner-row {
+    padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 8px; cursor: pointer;
+    display: flex; align-items: flex-start; gap: 10px;
+    transition: border-color 0.1s;
+  }
+  .scanner-row:hover { border-color: var(--accent); }
+  .scanner-row input { margin-top: 4px; }
+  .scanner-row.selected { border-color: var(--accent); background: rgba(110,168,255,0.05); }
+  .scanner-name { font-weight: 500; font-size: 14px; }
+  .scanner-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .risk-pill {
+    display: inline-block; padding: 1px 6px; border-radius: 8px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-left: 6px;
+  }
+  .risk-safe { background: rgba(34,197,94,0.15); color: var(--safe); }
+  .risk-low { background: rgba(56,189,248,0.15); color: var(--low); }
+  .risk-medium { background: rgba(234,179,8,0.15); color: var(--medium); }
+  .risk-high { background: rgba(239,68,68,0.15); color: var(--high); }
+  .quick-buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .quick-buttons button {
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+  .quick-buttons button:hover { border-color: var(--accent); }
+  .actions { display: flex; gap: 10px; margin-top: 16px; }
+  button.primary {
+    background: var(--accent); color: var(--bg); border: none;
+    padding: 11px 20px; border-radius: 6px; font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary:hover { opacity: 0.9; }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .warning {
+    background: rgba(234,179,8,0.1); border: 1px solid var(--medium);
+    border-radius: 6px; padding: 12px; margin-top: 16px;
+    font-size: 13px; color: var(--text);
+  }
+  .warning strong { color: var(--medium); }
+  .live { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+  .live-row {
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .live-row:last-child { border-bottom: none; }
+  .status-completed { color: var(--safe); }
+  .status-running { color: var(--accent); }
+  .status-error { color: var(--high); }
+  .status-skipped { color: var(--medium); }
+  .reports-list { font-size: 13px; }
+  .report-item {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .report-item:last-child { border-bottom: none; }
+  .report-item a { color: var(--accent); text-decoration: none; }
+  .report-item a:hover { text-decoration: underline; }
+  .report-meta { color: var(--text-dim); font-size: 11px; }
+  .empty { color: var(--text-dim); font-style: italic; padding: 16px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="layout">
+<header>
+  <h1>secscan</h1>
+  <p>Configure and run security scans. Reports written to ./reports/.</p>
+</header>
+
+<div class="grid">
+  <div class="panel">
+    <h2>New scan</h2>
+    <div class="field">
+      <label for="target">Target URL or hostname</label>
+      <input type="text" id="target" placeholder="https://example.com" />
+    </div>
+    <div class="field">
+      <label for="repo">Local repo path (optional, for code scanners)</label>
+      <input type="text" id="repo" placeholder="/path/to/repo" />
+    </div>
+
+    <div class="field">
+      <label>Quick profiles</label>
+      <div class="quick-buttons">
+        {% for profile, names in profiles.items() %}
+        <button onclick="applyProfile({{ names|tojson }})">{{ profile }}</button>
+        {% endfor %}
+        <button onclick="clearAll()">clear</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Scanners</label>
+      <div class="scanners" id="scanners">
+        {% for s in scanners %}
+        <label class="scanner-row" data-name="{{ s.name }}">
+          <input type="checkbox" value="{{ s.name }}" onchange="toggleSelected(this)" />
+          <div style="flex:1">
+            <div class="scanner-name">
+              {{ s.title }}
+              <span class="risk-pill risk-{{ s.risk }}">{{ s.risk }}</span>
+            </div>
+            <div class="scanner-meta">{{ s.description }}</div>
+            {% if s.risk in ("medium", "high") %}
+            <div class="scanner-meta" style="color: var(--medium); margin-top: 4px;">
+              Damage: {{ s.damage }}
+            </div>
+            {% endif %}
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field" style="border-top: 1px solid var(--border); padding-top: 14px;">
+      <label>Remediation enrichment</label>
+      <div style="display:flex; flex-direction:column; gap:8px; font-size:13px;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="opt-enrich" checked />
+          <span>Enrich findings with curated fixes (free, always on)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="opt-ai" checked />
+          <span>Use AI for tailored fixes (needs ANTHROPIC_API_KEY env var)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="opt-code" checked />
+          <span>Send code/config snippets to AI for context-aware fixes</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="warning-area"></div>
+
+    <div class="actions">
+      <button class="primary" id="run-btn" onclick="runScan()">Run scan</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel" style="margin-bottom: 24px;">
+      <h2>Live progress</h2>
+      <div class="live" id="live"><div class="empty">No scan running.</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Past reports</h2>
+      <div class="reports-list" id="reports"><div class="empty">Loading...</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function toggleSelected(input) {
+  input.closest(".scanner-row").classList.toggle("selected", input.checked);
+  updateWarning();
+}
+
+function applyProfile(names) {
+  document.querySelectorAll('.scanners input[type="checkbox"]').forEach(cb => {
+    cb.checked = names.includes(cb.value);
+    cb.closest(".scanner-row").classList.toggle("selected", cb.checked);
+  });
+  updateWarning();
+}
+
+function clearAll() {
+  document.querySelectorAll('.scanners input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+    cb.closest(".scanner-row").classList.remove("selected");
+  });
+  updateWarning();
+}
+
+function getSelected() {
+  return Array.from(document.querySelectorAll('.scanners input:checked')).map(cb => cb.value);
+}
+
+function updateWarning() {
+  const selected = getSelected();
+  const risky = [];
+  selected.forEach(name => {
+    const row = document.querySelector(`.scanner-row[data-name="${name}"]`);
+    const risk = row.querySelector(".risk-pill").textContent.trim();
+    if (risk === "medium" || risk === "high") risky.push({name, risk});
+  });
+  const area = document.getElementById("warning-area");
+  if (risky.length === 0) { area.innerHTML = ""; return; }
+  area.innerHTML = `
+    <div class="warning">
+      <strong>Heads up.</strong> You selected ${risky.length} risky scanner(s):
+      ${risky.map(r => `<code>${r.name}</code> (${r.risk})`).join(", ")}.
+      These send active attack traffic. Only run against assets you own.
+    </div>`;
+}
+
+async function runScan() {
+  const target = document.getElementById("target").value.trim();
+  const repo = document.getElementById("repo").value.trim();
+  const scanners = getSelected();
+
+  if (!target) { alert("Enter a target."); return; }
+  if (scanners.length === 0) { alert("Select at least one scanner."); return; }
+
+  const risky = scanners.filter(name => {
+    const row = document.querySelector(`.scanner-row[data-name="${name}"]`);
+    const risk = row.querySelector(".risk-pill").textContent.trim();
+    return risk === "medium" || risk === "high";
+  });
+  if (risky.length > 0) {
+    if (!confirm(`Risky scanners selected:\n\n${risky.join("\n")}\n\nThese can affect the target. Proceed only if you own it.`)) {
+      return;
+    }
+  }
+
+  const btn = document.getElementById("run-btn");
+  btn.disabled = true; btn.textContent = "Starting...";
+  document.getElementById("live").innerHTML = "";
+
+  const res = await fetch("/api/scan", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      target, scanners,
+      repo: repo || null,
+      enrich: document.getElementById("opt-enrich").checked,
+      ai: document.getElementById("opt-ai").checked,
+      include_code: document.getElementById("opt-code").checked,
+    }),
+  });
+  if (!res.ok) {
+    alert("Failed: " + (await res.text()));
+    btn.disabled = false; btn.textContent = "Run scan";
+    return;
+  }
+  const {job_id} = await res.json();
+  pollJob(job_id);
+}
+
+async function pollJob(jobId) {
+  const live = document.getElementById("live");
+  const btn = document.getElementById("run-btn");
+  btn.textContent = "Scanning...";
+
+  const tick = async () => {
+    const res = await fetch(`/api/jobs/${jobId}`);
+    const job = await res.json();
+
+    let html = "";
+    job.events.forEach(e => {
+      html += `<div class="live-row">
+        <span>${e.scanner}</span>
+        <span class="status-${e.status}">${e.status} (${e.findings} findings)</span>
+      </div>`;
+    });
+    const pending = job.scanners.filter(n => !job.events.find(e => e.scanner === n));
+    pending.forEach(n => {
+      html += `<div class="live-row">
+        <span>${n}</span>
+        <span class="status-running">running...</span>
+      </div>`;
+    });
+    live.innerHTML = html;
+
+    if (job.status === "completed" || job.status === "error") {
+      btn.disabled = false; btn.textContent = "Run scan";
+      if (job.status === "completed" && job.report_dir) {
+        const url = `/reports/${job.report_dir}/report.html`;
+        live.innerHTML += `<div class="live-row" style="margin-top:12px;">
+          <span>Report ready:</span>
+          <a href="${url}" target="_blank">open ${job.report_dir}</a>
+        </div>`;
+      }
+      loadReports();
+      return;
+    }
+    setTimeout(tick, 1500);
+  };
+  tick();
+}
+
+async function loadReports() {
+  const res = await fetch("/api/reports");
+  const data = await res.json();
+  const el = document.getElementById("reports");
+  if (data.reports.length === 0) {
+    el.innerHTML = '<div class="empty">No reports yet.</div>';
+    return;
+  }
+  el.innerHTML = data.reports.map(r => {
+    const sev = r.summary?.by_severity || {};
+    const sevText = Object.entries(sev).map(([k,v]) => `${k}:${v}`).join(" ") || "no findings";
+    return `
+      <div class="report-item">
+        <div>
+          <a href="/reports/${r.name}/report.html" target="_blank">${r.target}</a>
+          <div class="report-meta">${r.generated_at} · ${sevText}</div>
+        </div>
+        <div>
+          <a href="/reports/${r.name}/report.json" target="_blank">json</a>
+          ·
+          <a href="/reports/${r.name}/report.md" target="_blank">md</a>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+loadReports();
+setInterval(loadReports, 30000);
+</script>
+</body>
+</html>
