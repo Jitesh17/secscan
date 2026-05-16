@@ -4,6 +4,8 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/secscan-tool.svg)](https://pypi.org/project/secscan-tool/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> Hosted version with scheduled scans, change diffs, and email alerts coming soon. [Join the waitlist](https://secscan.jinovasystems.com).
+
 Automated web security scanner. Runs a configurable battery of scans against a target, warns you about anything risky before running it, and produces HTML, Markdown, and JSON reports.
 
 ![secscan dashboard](https://raw.githubusercontent.com/Jitesh17/secscan/main/docs/dashboard.png)
